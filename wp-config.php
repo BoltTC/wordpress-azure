@@ -108,8 +108,6 @@ define('BLOG_ID_CURRENT_SITE', 1);
 
 define('SUNRISE', 'on');
 
-define('FORCE_SSL_ADMIN', true);
-
 /* That's all, stop editing! Happy blogging. */
 
 //Relative URLs for swapping across app service deployment slots 

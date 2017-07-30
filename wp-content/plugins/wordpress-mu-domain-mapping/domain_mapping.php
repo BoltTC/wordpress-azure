@@ -3,7 +3,7 @@
 Plugin Name: WordPress MU Domain Mapping
 Plugin URI: http://ocaoimh.ie/wordpress-mu-domain-mapping/
 Description: Map any blog on a WordPress website to another domain.
-Version: 0.5.4.3
+Version: 0.5.5.1
 Author: Donncha O Caoimh
 Author URI: http://ocaoimh.ie/
 */
@@ -144,24 +144,15 @@ function dm_domains_admin() {
 				}
 			break;
 			case "save":
-				if (
-					isset( $_POST['blog_id'] ) AND
-					$_POST[ 'blog_id' ] != 0 AND 
+				if ( $_POST[ 'blog_id' ] != 0 AND 
 					$_POST[ 'blog_id' ] != 1 AND 
 					null == $wpdb->get_var( $wpdb->prepare( "SELECT domain FROM {$wpdb->dmtable} WHERE blog_id != %d AND domain = %s", $_POST[ 'blog_id' ], $domain ) ) 
 				) {
-					$active = 0;
-
-					if( isset( $_POST[ 'active' ] ) ) {
-						$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->dmtable} SET active = 0 WHERE blog_id = %d", $_POST[ 'blog_id' ] ) );
-						$active = 1;
-					}
-
 					if ( $_POST[ 'orig_domain' ] == '' ) {
-						$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->dmtable} ( `blog_id`, `domain`, `active` ) VALUES ( %d, %s, %d )", $_POST[ 'blog_id' ], $domain, $active ) );
+						$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->dmtable} ( `blog_id`, `domain`, `active` ) VALUES ( %d, %s, %d )", $_POST[ 'blog_id' ], $domain, $_POST[ 'active' ] ) );
 						echo "<p><strong>" . __( 'Domain Add', 'wordpress-mu-domain-mapping' ) . "</strong></p>";
 					} else {
-						$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->dmtable} SET blog_id = %d, domain = %s, active = %d WHERE domain = %s", $_POST[ 'blog_id' ], $domain, $active, $_POST[ 'orig_domain' ] ) );
+						$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->dmtable} SET blog_id = %d, domain = %s, active = %d WHERE domain = %s", $_POST[ 'blog_id' ], $domain, $_POST[ 'active' ], $_POST[ 'orig_domain' ] ) );
 						echo "<p><strong>" . __( 'Domain Updated', 'wordpress-mu-domain-mapping' ) . "</strong></p>";
 					}
 				}
@@ -280,33 +271,26 @@ function dm_admin_page() {
 	if ( get_site_option( 'dm_user_settings', 'NA' ) == 'NA' )
 		add_site_option( 'dm_user_settings', 1 );
 
-	if ( ! empty( $_POST[ 'action' ] ) ) {
+	if ( !empty( $_POST[ 'action' ] ) ) {
 		check_admin_referer( 'domain_mapping' );
-
 		if ( $_POST[ 'action' ] == 'update' ) {
 			$ipok = true;
 			$ipaddresses = explode( ',', $_POST[ 'ipaddress' ] );
-
 			foreach( $ipaddresses as $address ) {
 				if ( ( $ip = trim( $address ) ) && !preg_match( '|^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$|', $ip ) ) {
 					$ipok = false;
 					break;
 				}
 			}
-
 			if( $ipok )
 				update_site_option( 'dm_ipaddress', $_POST[ 'ipaddress' ] );
-
 			if ( intval( $_POST[ 'always_redirect_admin' ] ) == 0 )
 				$_POST[ 'dm_remote_login' ] = 0; // disable remote login if redirecting to mapped domain
-
 			update_site_option( 'dm_remote_login', intval( $_POST[ 'dm_remote_login' ] ) );
-
 			if ( ! preg_match( '/(--|\.\.)/', $_POST[ 'cname' ] ) && preg_match( '|^([a-zA-Z0-9-\.])+$|', $_POST[ 'cname' ] ) )
 				update_site_option( 'dm_cname', stripslashes( $_POST[ 'cname' ] ) );
 			else
 				update_site_option( 'dm_cname', '' );
-
 			update_site_option( 'dm_301_redirect', isset( $_POST[ 'permanent_redirect' ] ) ? intval( $_POST[ 'permanent_redirect' ] ) : 0 );
 			update_site_option( 'dm_redirect_admin', isset( $_POST[ 'always_redirect_admin' ] ) ? intval( $_POST[ 'always_redirect_admin' ] ) : 0 );
 			update_site_option( 'dm_user_settings', isset( $_POST[ 'dm_user_settings' ] ) ? intval( $_POST[ 'dm_user_settings' ] ) : 0 );
@@ -352,10 +336,8 @@ function dm_admin_page() {
 
 function dm_handle_actions() {
 	global $wpdb, $parent_file;
-
 	$url = add_query_arg( array( 'page' => 'domainmapping' ), admin_url( $parent_file ) );
-
-	if ( ! empty( $_POST[ 'action' ] ) ) {
+	if ( !empty( $_POST[ 'action' ] ) ) {
 		$domain = $wpdb->escape( $_POST[ 'domain' ] );
 		if ( $domain == '' ) {
 			wp_die( "You must enter a domain" );
@@ -366,14 +348,10 @@ function dm_handle_actions() {
 			case "add":
 				do_action('dm_handle_actions_add', $domain);
 				if( null == $wpdb->get_row( "SELECT blog_id FROM {$wpdb->blogs} WHERE domain = '$domain'" ) && null == $wpdb->get_row( "SELECT blog_id FROM {$wpdb->dmtable} WHERE domain = '$domain'" ) ) {
-					$primary = 0;
-
-					if ( isset( $_POST[ 'primary' ] ) ) {
+					if ( $_POST[ 'primary' ] ) {
 						$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->dmtable} SET active = 0 WHERE blog_id = %d", $wpdb->blogid ) );
-						$primary = 1;
 					}
-
-					$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->dmtable} ( `id` , `blog_id` , `domain` , `active` ) VALUES ( NULL, %d, %s, %d )", $wpdb->blogid, $domain, $primary ) );
+					$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->dmtable} ( `id` , `blog_id` , `domain` , `active` ) VALUES ( NULL, %d, %s, %d )", $wpdb->blogid, $domain, $_POST[ 'primary' ] ) );
 					wp_redirect( add_query_arg( array( 'updated' => 'add' ), $url ) );
 					exit;
 				} else {
@@ -392,8 +370,7 @@ function dm_handle_actions() {
 				exit;
 			break;
 		}
-	}
-	elseif( isset( $_GET[ 'action' ] ) && $_GET[ 'action' ] == 'delete' ) {
+	} elseif( $_GET[ 'action' ] == 'delete' ) {
 		$domain = $wpdb->escape( $_GET[ 'domain' ] );
 		if ( $domain == '' ) {
 			wp_die( __( "You must enter a domain", 'wordpress-mu-domain-mapping' ) );
@@ -463,10 +440,8 @@ function dm_manage_page() {
 		return false;
 	}
 
-	$protocol = is_ssl() ? 'https://' : 'http://'; 
-
+	$protocol = is_ssl() ? 'https://' : 'http://';
 	$domains = $wpdb->get_results( "SELECT * FROM {$wpdb->dmtable} WHERE blog_id = '{$wpdb->blogid}'", ARRAY_A );
-
 	if ( is_array( $domains ) && !empty( $domains ) ) {
 		$orig_url = parse_url( get_original_url( 'siteurl' ) );
 		$domains[] = array( 'domain' => $orig_url[ 'host' ], 'path' => $orig_url[ 'path' ], 'active' => 0 );
@@ -484,7 +459,7 @@ function dm_manage_page() {
 			if ( $details[ 'active' ] == 1 )
 				echo "checked='1' ";
 			echo "/>";
-			$url = "{$protocol}{$details[ 'domain' ]}";
+			$url = "{$protocol}{$details[ 'domain' ]}{$details[ 'path' ]}";
 			echo "</td><td><a href='$url'>$url</a></td><td style='text-align: center'>";
 			if ( $details[ 'domain' ] != $orig_url[ 'host' ] && $details[ 'active' ] != 1 ) {
 				echo "<a href='" . wp_nonce_url( add_query_arg( array( 'domain' => $details[ 'domain' ] ), $del_url ), "delete" . $details[ 'domain' ] ) . "'>Del</a>";
@@ -530,58 +505,41 @@ function dm_manage_page() {
 }
 
 function domain_mapping_siteurl( $setting ) {
-	global $wpdb, $current_site;
+	global $wpdb, $current_blog;
 
 	// To reduce the number of database queries, save the results the first time we encounter each blog ID.
 	static $return_url = array();
 
-	$option_key = 'home';
-
-	if( 'pre_option_siteurl' == current_filter() )
-		$option_key = 'siteurl';
-
 	$wpdb->dmtable = $wpdb->base_prefix . 'domain_mapping';
 
-	if ( ! isset( $return_url[ $wpdb->blogid ] ) || ! isset( $return_url[ $wpdb->blogid ][ $option_key ] ) ) {
-		if( ! isset( $return_url[ $wpdb->blogid ] ) )
-			$return_url[ $wpdb->blogid ] = array();
-
+	if ( !isset( $return_url[ $wpdb->blogid ] ) ) {
 		$s = $wpdb->suppress_errors();
 
 		if ( get_site_option( 'dm_no_primary_domain' ) == 1 ) {
 			$domain = $wpdb->get_var( "SELECT domain FROM {$wpdb->dmtable} WHERE blog_id = '{$wpdb->blogid}' AND domain = '" . $wpdb->escape( $_SERVER[ 'HTTP_HOST' ] ) . "' LIMIT 1" );
-
 			if ( null == $domain ) {
-				$return_url[ $wpdb->blogid ][ $option_key ] = untrailingslashit( get_original_url( $option_key ) );
-				return $return_url[ $wpdb->blogid ][ $option_key ];
+				$return_url[ $wpdb->blogid ] = untrailingslashit( get_original_url( "siteurl" ) );
+				return $return_url[ $wpdb->blogid ];
 			}
 		} else {
 			// get primary domain, if we don't have one then return original url.
 			$domain = $wpdb->get_var( "SELECT domain FROM {$wpdb->dmtable} WHERE blog_id = '{$wpdb->blogid}' AND active = 1 LIMIT 1" );
-
 			if ( null == $domain ) {
-				$return_url[ $wpdb->blogid ][ $option_key ] = untrailingslashit( get_original_url( $option_key ) );
-				return $return_url[ $wpdb->blogid ][ $option_key ];
+				$return_url[ $wpdb->blogid ] = untrailingslashit( get_original_url( "siteurl" ) );
+				return $return_url[ $wpdb->blogid ];
 			}
 		}
 
 		$wpdb->suppress_errors( $s );
-
-		$protocol = is_ssl() ? 'https://' : 'http://'; 
-
+		$protocol = is_ssl() ? 'https://' : 'http://';
 		if ( $domain ) {
-			if( 'siteurl' == $option_key )
-				$return_url[ $wpdb->blogid ][ $option_key ] = untrailingslashit( $protocol . $domain . $current_site->path );
-			else 
-				$return_url[ $wpdb->blogid ][ $option_key ] = untrailingslashit( $protocol . $domain );
-
-			$setting = $return_url[ $wpdb->blogid ][ $option_key ];
+			$return_url[ $wpdb->blogid ] = untrailingslashit( $protocol . $domain  );
+			$setting = $return_url[ $wpdb->blogid ];
 		} else {
-			$return_url[ $wpdb->blogid ][ $option_key ] = false;
+			$return_url[ $wpdb->blogid ] = false;
 		}
-	}
-	elseif ( $return_url[ $wpdb->blogid ][ $option_key ] !== FALSE ) {
-		$setting = $return_url[ $wpdb->blogid ][ $option_key ];
+	} elseif ( $return_url[ $wpdb->blogid ] !== FALSE) {
+		$setting = $return_url[ $wpdb->blogid ];
 	}
 
 	return $setting;
@@ -591,38 +549,35 @@ function domain_mapping_siteurl( $setting ) {
 function get_original_url( $url, $blog_id = 0 ) {
 	global $wpdb;
 
-	if ( $blog_id != 0 )
-		$id = $blog_id;
-	else
+	if ( $blog_id != 0 ) {
+		$id = $blog_id; 
+	} else {
 		$id = $wpdb->blogid;
-
-	if( 'home' != $url && 'siteurl' != $url )
-		$url = 'siteurl';
+	}
 
 	static $orig_urls = array();
-	if ( ! isset( $orig_urls[ $id ] ) || ! isset( $orig_urls[ $id ][ $url ] ) ) {
+	if ( ! isset( $orig_urls[ $id ] ) ) {
 		if ( defined( 'DOMAIN_MAPPING' ) ) 
-			remove_filter( 'pre_option_' . $url, 'domain_mapping_siteurl' );
-
-		if ( $blog_id == 0 )
+			remove_filter( 'pre_option_' . $url, 'domain_mapping_' . $url );
+		if ( $blog_id == 0 ) {
 			$orig_url = get_option( $url );
-		else
+		} else {
 			$orig_url = get_blog_option( $blog_id, $url );
-
-		if ( is_ssl() )
+		}
+		if ( is_ssl() ) {
 			$orig_url = str_replace( "http://", "https://", $orig_url );
-		else
+		} else {
 			$orig_url = str_replace( "https://", "http://", $orig_url );
-
-		if( ! isset( $orig_urls[ $id ] ) )
-			$orig_urls[ $id ] = array();
-
-		$orig_urls[ $id ][ $url ] = $orig_url;
-
+		}
+		if ( $blog_id == 0 ) {
+			$orig_urls[ $wpdb->blogid ] = $orig_url;
+		} else {
+			$orig_urls[ $blog_id ] = $orig_url;
+		}
 		if ( defined( 'DOMAIN_MAPPING' ) ) 
-			add_filter( 'pre_option_' . $url, 'domain_mapping_siteurl' );
+			add_filter( 'pre_option_' . $url, 'domain_mapping_' . $url );
 	}
-	return $orig_urls[ $id ][ $url ];
+	return $orig_urls[ $id ];
 }
 
 function domain_mapping_adminurl( $url, $path, $blog_id = 0 ) {
@@ -674,7 +629,7 @@ function dm_redirect_admin() {
 }
 
 function redirect_login_to_orig() {
-	if ( ! get_site_option( 'dm_remote_login' ) || ( isset( $_GET[ 'action' ] ) && $_GET[ 'action' ] == 'logout' ) || isset( $_GET[ 'loggedout' ] ) ) {
+	if ( !get_site_option( 'dm_remote_login' ) || $_GET[ 'action' ] == 'logout' || isset( $_GET[ 'loggedout' ] ) ) {
 		return false;
 	}
 	$url = get_original_url( 'siteurl' );
@@ -684,7 +639,18 @@ function redirect_login_to_orig() {
 	}
 }
 
+// fixes the plugins_url 
+function domain_mapping_plugins_uri( $full_url, $path=NULL, $plugin=NULL ) {
+	return get_option( 'siteurl' ) . substr( $full_url, stripos( $full_url, PLUGINDIR ) - 1 );
+}
+
+function domain_mapping_themes_uri( $full_url ) {
+	return str_replace( get_original_url ( 'siteurl' ), get_option( 'siteurl' ), $full_url );
+}
+
 if ( defined( 'DOMAIN_MAPPING' ) ) {
+	add_filter( 'plugins_url', 'domain_mapping_plugins_uri', 1 );
+	add_filter( 'theme_root_uri', 'domain_mapping_themes_uri', 1 );
 	add_filter( 'pre_option_siteurl', 'domain_mapping_siteurl' );
 	add_filter( 'pre_option_home', 'domain_mapping_siteurl' );
 	add_filter( 'the_content', 'domain_mapping_post_content' );
@@ -719,7 +685,7 @@ function remote_logout_loader() {
 }
 
 function redirect_to_mapped_domain() {
-	global $current_blog, $wpdb, $wp_customize;
+	global $current_blog, $wpdb;
 
 	// don't redirect the main site
 	if ( is_main_site() )
@@ -729,12 +695,11 @@ function redirect_to_mapped_domain() {
 		return;
 
 	// don't redirect theme customizer (WP 3.4)
-	if ( is_a( $wp_customize, 'WP_Customize_Manager' ) )
+	if ( isset( $_POST['customize'] ) && isset( $_POST['theme'] ) && $_POST['customize'] == 'on' )
 		return;
 
 	$protocol = is_ssl() ? 'https://' : 'http://';
 	$url = domain_mapping_siteurl( false );
-
 	if ( $url && $url != untrailingslashit( $protocol . $current_blog->domain . $current_blog->path ) ) {
 		$redirect = get_site_option( 'dm_301_redirect' ) ? '301' : '302';
 		if ( ( defined( 'VHOST' ) && constant( "VHOST" ) != 'yes' ) || ( defined( 'SUBDOMAIN_INSTALL' ) && constant( 'SUBDOMAIN_INSTALL' ) == false ) ) {
@@ -764,7 +729,6 @@ function remote_login_js() {
 	$wpdb->dmtablelogins = $wpdb->base_prefix . 'domain_mapping_logins';
 	$hash = get_dm_hash();
 	$protocol = is_ssl() ? 'https://' : 'http://';
-
 	if ( $_GET[ 'dm' ] == $hash ) {
 		if ( $_GET[ 'action' ] == 'load' ) {
 			if ( !is_user_logged_in() )

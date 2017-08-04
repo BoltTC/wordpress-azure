@@ -95,7 +95,7 @@ $table_prefix  = 'wp_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
-define('WP_DEBUG', true);
+define('WP_DEBUG', false);
 
 /* Multisite */
 define('WP_ALLOW_MULTISITE', true );

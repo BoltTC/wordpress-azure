@@ -1,0 +1,18 @@
+Deploy changes
+--------------
+- Change anything
+- Commit in Git
+- Push to GitHub remote repo
+- Deployment is automatically done.
+
+Modify Theme.css
+----------------
+- modify wp-content\themes\lambda\assets\theme.css
+- minify on commandline: minify theme.css
+
+Install Plugins
+---------------
+- Install plugin in Wordpress Admin
+- Use FTP-client to synchronize the specific plugin folder from the server located in wp-content\plugins to the local Git-repo. Or synchronize the whole plugins-folder to ensure that all plugins are up-to-date.
+- Commit local Git-Repo
+- Push to GitHub remote repo.
